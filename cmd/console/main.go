@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 	"arz-synchro-reloj/internal/syncmarca"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -76,14 +77,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Solicitar parámetros
-	fmt.Print("Ingresa el año (YYYY): ")
-	var year string
-	fmt.Scanln(&year)
-
-	fmt.Print("Ingresa el mes (MM): ")
-	var month string
-	fmt.Scanln(&month)
+	// Obtener año y mes actual
+	currentTime := time.Now()
+	year := strconv.Itoa(currentTime.Year())
+	month := fmt.Sprintf("%02d", int(currentTime.Month()))
+	fmt.Printf("Procesando marcaciones para: %s/%s\n", month, year)
 
 	// Crear cliente y obtener marcaciones
 	client := syncmarca.NewDefaultClient()
