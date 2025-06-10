@@ -1,5 +1,5 @@
 package main
-//recuercion de version mysql
+//recupercion de version mysql 8.0.33
 import (
 	"database/sql"
 	"fmt"
