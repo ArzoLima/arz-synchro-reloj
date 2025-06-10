@@ -17,9 +17,9 @@ type User struct {
 	Username string
 }
 
-// Marcacion representa cada registro extraído de la base de datos.
+// Marcas representa los datos procesados que se insertarán en la base de datos.
 type Marcas struct {
-	id_trabajador string
+	trabajador_id int
 	Fecha         string
 	Hora          string
 }
@@ -95,12 +95,11 @@ func main() {
 	var marcasProcesadas []Marcas
 	for _, marcacion := range marcaciones {
 		for _, user := range users {
-			// Extraer los últimos 8 dígitos del IdEmpleado
 			if len(marcacion.IdEmpleado) >= 8 {
 				idSuffix := marcacion.IdEmpleado[len(marcacion.IdEmpleado)-8:]
 				if idSuffix == user.Username {
 					marcasProcesadas = append(marcasProcesadas, Marcas{
-						id_trabajador: user.Username,
+						trabajador_id: user.ID,
 						Fecha:         marcacion.Fecha,
 						Hora:          marcacion.Hora,
 					})
@@ -109,9 +108,40 @@ func main() {
 		}
 	}
 
-	// Imprimir las marcaciones procesadas
-	fmt.Println("Marcaciones procesadas:")
-	for _, m := range marcasProcesadas {
-		fmt.Printf("id_trabajador: %s, Fecha: %s, Hora: %s\n", m.id_trabajador, m.Fecha, m.Hora)
+	// Iniciar transacción
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatalf("Error al iniciar la transacción: %v", err)
 	}
+
+	// Borrar registros existentes para el mes y año, usando las funciones YEAR() y MONTH() para mayor precisión.
+	_, err = tx.Exec("DELETE FROM arz_intranet.permisos_marcassynchro WHERE YEAR(fecha) = ? AND MONTH(fecha) = ?", year, month)
+	if err != nil {
+		tx.Rollback()
+		log.Fatalf("Error al borrar registros existentes: %v", err)
+	}
+
+	// Insertar nuevas marcaciones
+	stmt, err := tx.Prepare("INSERT INTO arz_intranet.permisos_marcassynchro(trabajador_id, fecha, hora, fecha_synchro) VALUES(?, ?, ?, NOW())")
+	if err != nil {
+		tx.Rollback()
+		log.Fatalf("Error al preparar la inserción: %v", err)
+	}
+	defer stmt.Close()
+
+	for _, m := range marcasProcesadas {
+		_, err := stmt.Exec(m.trabajador_id, m.Fecha, m.Hora)
+		if err != nil {
+			tx.Rollback()
+			log.Fatalf("Error al insertar marcación: %v", err)
+		}
+	}
+
+	// Confirmar transacción
+	err = tx.Commit()
+	if err != nil {
+		log.Fatalf("Error al confirmar la transacción: %v", err)
+	}
+
+	fmt.Println("Sincronización completada con éxito.")
 }
