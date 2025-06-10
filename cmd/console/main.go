@@ -1,5 +1,5 @@
 package main
-
+//recuercion de version mysql
 import (
 	"database/sql"
 	"fmt"
