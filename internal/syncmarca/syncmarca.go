@@ -36,14 +36,16 @@ func NewClient(config Config) *Client {
 	}
 }
 
-// NewDefaultClient crea un cliente con la configuración por defecto (SVRDP)
+// NewDefaultClient crea un cliente con la configuración por defecto
 func NewDefaultClient() *Client {
-	return NewClient(Config{
-		Server:                "SVRDP",
-		Database:              "ZKTime",
-		UseIntegratedSecurity: true,
-		Encrypt:               false,
-	})
+	return &Client{
+		config: Config{
+			Server:                "SVRDP",
+			Database:              "ZKTime",
+			UseIntegratedSecurity: true,
+			Encrypt:               false,
+		},
+	}
 }
 
 // Connect establece la conexión a la base de datos
@@ -113,12 +115,38 @@ func (c *Client) GetMarcaciones(year, month string) ([]Marcacion, error) {
 
 // GetMarcacionesWithAutoConnect obtiene marcaciones conectándose automáticamente
 func (c *Client) GetMarcacionesWithAutoConnect(year, month string) ([]Marcacion, error) {
-	if err := c.Connect(); err != nil {
-		return nil, err
+	dsn := fmt.Sprintf("server=%s;database=%s;integrated security=true;encrypt=disable",
+		c.config.Server, c.config.Database)
+	
+	db, err := sql.Open("sqlserver", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("error al crear la conexión: %v", err)
 	}
-	defer c.Close()
+	defer db.Close()
 
-	return c.GetMarcaciones(year, month)
+	if err = db.Ping(); err != nil {
+		return nil, fmt.Errorf("error conectando a la base de datos: %v", err)
+	}
+
+	likePattern := year + month + "%"
+	query := "SELECT Fecha, Hora, IdEmpleado FROM [ZKTime].[dbo].[FICHAJES01] WHERE Fecha LIKE @p1 ORDER BY IdEmpleado, Fecha, Hora;"
+
+	rows, err := db.Query(query, likePattern)
+	if err != nil {
+		return nil, fmt.Errorf("error ejecutando la consulta: %v", err)
+	}
+	defer rows.Close()
+
+	var results []Marcacion
+	for rows.Next() {
+		var m Marcacion
+		if err := rows.Scan(&m.Fecha, &m.Hora, &m.IdEmpleado); err != nil {
+			return nil, fmt.Errorf("error leyendo los datos: %v", err)
+		}
+		results = append(results, m)
+	}
+
+	return results, rows.Err()
 }
 
 // buildConnectionString construye la cadena de conexión basada en la configuración
