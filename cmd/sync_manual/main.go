@@ -1,15 +1,30 @@
 package main
-//recupercion de version mysql 8.0.33
+
 import (
-<<<<<<< HEAD
 	"flag"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
+	"database/sql"
+	"os"
 
 	"arz-synchro-reloj/internal/syncmarca"
+	"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
+
+type User struct {
+	ID       int
+	Username string
+}
+
+// Marcas representa los datos procesados que se insertarán en la base de datos.
+type Marcas struct {
+	trabajador_id int
+	Fecha         string
+	Hora          string
+}
 
 func main() {
 	// Definir flags para año y mes
@@ -47,45 +62,7 @@ func main() {
 
 	fmt.Printf("Obteniendo marcaciones para: %s/%s\n", month, year)
 
-	// Opción 1: Usar cliente por defecto
-	client := syncmarca.NewDefaultClient()
-
-	// Opción 2: Usar configuración personalizada
-	// client := syncmarca.NewClient(syncmarca.Config{
-	//     Server:                "MISERVIDOR",
-	//     Database:              "MiBaseDatos",
-	//     UseIntegratedSecurity: true,
-	//     Encrypt:               false,
-	// })
-
-	// Obtener marcaciones con conexión automática usando los parámetros
-=======
-	"database/sql"
-	"fmt"
-	"log"
-	"os"
-	"strconv"
-	"time"
-	"arz-synchro-reloj/internal/syncmarca"
-
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
-)
-
-type User struct {
-	ID       int
-	Username string
-}
-
-// Marcas representa los datos procesados que se insertarán en la base de datos.
-type Marcas struct {
-	trabajador_id int
-	Fecha         string
-	Hora          string
-}
-
-func main() {
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
@@ -136,27 +113,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Obtener año y mes actual
-	currentTime := time.Now()
-	year := strconv.Itoa(currentTime.Year())
-	month := fmt.Sprintf("%02d", int(currentTime.Month()))
-	fmt.Printf("Procesando marcaciones para: %s/%s\n", month, year)
-
 	// Crear cliente y obtener marcaciones
 	client := syncmarca.NewDefaultClient()
->>>>>>> d4855163838ac42b9139da50e497aef86d60bb25
 	marcaciones, err := client.GetMarcacionesWithAutoConnect(year, month)
 	if err != nil {
 		log.Fatalf("Error obteniendo marcaciones: %v", err)
 	}
 
-<<<<<<< HEAD
-	// Mostrar resultados
-	fmt.Printf("Encontradas %d marcaciones para %s/%s:\n", len(marcaciones), month, year)
-	for _, m := range marcaciones {
-		fmt.Printf("Empleado: %s, Fecha: %s, Hora: %s\n",
-			m.IdEmpleado, m.Fecha, m.Hora)
-=======
 	var marcasProcesadas []Marcas
 	for _, marcacion := range marcaciones {
 		for _, user := range users {
@@ -171,7 +134,6 @@ func main() {
 				}
 			}
 		}
->>>>>>> d4855163838ac42b9139da50e497aef86d60bb25
 	}
 
 	// Iniciar transacción
